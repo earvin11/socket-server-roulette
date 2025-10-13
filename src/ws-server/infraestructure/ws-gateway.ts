@@ -17,6 +17,7 @@ import { RedisPort } from 'src/redis/domain/redis.port';
 import { Inject } from '@nestjs/common';
 import Redis from 'ioredis';
 import { RpcChannels } from 'src/shared/enums/rpc-channels.enum';
+import { envs } from 'src/config/envs';
 
 @WebSocketGateway({
   cors: {

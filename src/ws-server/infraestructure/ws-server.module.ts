@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { WsGateway } from './ws-gateway';
 import { BullModule } from '@nestjs/bullmq';
 import { QueueName } from 'src/shared/enums/queues-names.enum';
+import { RedisModule } from 'src/redis/infraestructure/redis.module';
+import { LoggerModule } from 'src/logging/infraestructure/logger.module';
 
 @Module({
   providers: [WsGateway],
@@ -13,6 +15,8 @@ import { QueueName } from 'src/shared/enums/queues-names.enum';
         removeOnFail: 5,
       },
     }),
+    LoggerModule,
+    RedisModule,
   ],
   exports: [WsGateway],
 })
