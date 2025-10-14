@@ -6,16 +6,16 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { Inject } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { Server, Socket } from 'socket.io';
+import Redis from 'ioredis';
+import { Queue } from 'bullmq';
 import { SocketEventsEnum } from 'src/shared/enums/socket-events.enum';
 import { getEntityFromCacheOrDb } from 'src/shared/helpers/get-entity-from-cache-or-db.helper';
 import { LoggerPort } from 'src/logging/domain/logger.port';
-import { InjectQueue } from '@nestjs/bullmq';
 import { QueueName } from 'src/shared/enums/queues-names.enum';
-import { Queue } from 'bullmq';
 import { RedisPort } from 'src/redis/domain/redis.port';
-import { Inject } from '@nestjs/common';
-import Redis from 'ioredis';
 import { RpcChannels } from 'src/shared/enums/rpc-channels.enum';
 import { isValidBet } from 'src/shared/helpers/is-valid-bet.helper';
 
