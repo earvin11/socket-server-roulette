@@ -45,95 +45,110 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       SocketEventsEnum.ROUND_START,
       SocketEventsEnum.ROUND_END,
       SocketEventsEnum.ROUND_JACKPOT_VALUES,
+      SocketEventsEnum.WINNER,
+      SocketEventsEnum.WINNER_ERR,
     );
 
-    this.sub.on(SocketEventsEnum.ROUND_START, async (message) => {
+    this.sub.on('message', async (channel, message) => {
       const data = JSON.parse(message);
-      const socketsInRoom = await this.server.in(data.channel).fetchSockets();
-      const usersOnline = socketsInRoom.length;
 
-      this.pub.publish(
-        'socket_events',
-        JSON.stringify({
-          event: SocketEventsEnum.ROUND_START,
-          data: {
-            ...data,
+      switch (channel) {
+        case SocketEventsEnum.ROUND_START: {
+          const socketsInRoom = await this.server
+            .in(data.channel)
+            .fetchSockets();
+          const usersOnline = socketsInRoom.length;
+
+          this.pub.publish(
+            'socket_events',
+            JSON.stringify({
+              event: SocketEventsEnum.ROUND_START,
+              data: {
+                ...data,
+                usersOnline,
+              },
+              room: data.channel,
+            }),
+          );
+
+          this.server.to(data.channel).emit(SocketEventsEnum.ROUND_START, {
+            msg: data.msg,
+            round: data.round,
             usersOnline,
-          },
-          room: data.channel,
-        }),
-      );
+          });
+          break;
+        }
 
-      // Emitir a los clientes socket.io
-      this.server.to(data.channel).emit(SocketEventsEnum.ROUND_START, {
-        msg: data.msg,
-        round: data.round,
-        usersOnline,
-      });
-    });
+        case SocketEventsEnum.ROUND_JACKPOT_VALUES: {
+          this.server
+            .to(data.channel)
+            .emit(SocketEventsEnum.ROUND_JACKPOT_VALUES, {
+              msg: data.msg,
+              jackpot_values: data.jackpot_values,
+              round: data.round,
+            });
+          break;
+        }
 
-    this.sub.on(SocketEventsEnum.ROUND_JACKPOT_VALUES, async (message) => {
-      const data = JSON.parse(message);
-      this.server.to(data.channel).emit(SocketEventsEnum.ROUND_JACKPOT_VALUES, {
-        msg: data.msg,
-        jackpot_values: data.jackpot_values,
-        round: data.round,
-      });
-    });
+        case SocketEventsEnum.ROUND_END: {
+          const socketsInRoom = await this.server
+            .in(data.channel)
+            .fetchSockets();
+          const usersOnline = socketsInRoom.length;
 
-    this.sub.on(SocketEventsEnum.ROUND_END, async (message) => {
-      const data = JSON.parse(message);
+          this.pub.publish(
+            'socket_events',
+            JSON.stringify({
+              event: SocketEventsEnum.ROUND_END,
+              data: {
+                ...data,
+                usersOnline,
+              },
+              room: data.channel,
+            }),
+          );
 
-      const socketsInRoom = await this.server.in(data.chanenel).fetchSockets();
-      const usersOnline = socketsInRoom.length;
-
-      this.pub.publish(
-        'socket_events',
-        JSON.stringify({
-          event: SocketEventsEnum.ROUND_END,
-          data: {
-            ...data,
+          this.server.to(data.channel).emit(SocketEventsEnum.ROUND_END, {
+            msg: data.msg,
+            result: data.result,
+            round: data.round,
             usersOnline,
-          },
-          room: data.channel,
-        }),
-      );
+          });
+          break;
+        }
 
-      this.server.to(data.channel).emit(SocketEventsEnum.ROUND_END, {
-        msg: data.msg,
-        result: data.result,
-        round: data.round,
-        usersOnline,
-      });
-    });
+        case SocketEventsEnum.BET_ERROR: {
+          this.server.to(data.channel).emit(SocketEventsEnum.BET_ERROR, {
+            msg: data.msg,
+          });
+          break;
+        }
 
-    this.sub.on(SocketEventsEnum.BET_ERROR, (message) => {
-      const data = JSON.parse(message);
-      this.server.to(data.channel).emit(SocketEventsEnum.BET_ERROR, {
-        msg: data.msg,
-      });
-    });
+        case SocketEventsEnum.BET_SUCCESS: {
+          const { channel: _, ...restData } = data;
+          this.server.to(data.channel).emit(SocketEventsEnum.BET_SUCCESS, {
+            ...restData,
+          });
+          break;
+        }
 
-    this.sub.on(SocketEventsEnum.BET_SUCCESS, (message) => {
-      const data = JSON.parse(message);
-      const { channel, ...restData } = data;
-      this.server.to(data.channel).emit(SocketEventsEnum.BET_SUCCESS, {
-        ...restData,
-      });
-    });
+        case SocketEventsEnum.WINNER: {
+          this.server.to(data.room).emit(SocketEventsEnum.WINNER, {
+            ...data.data,
+          });
+          break;
+        }
 
-    this.sub.on(SocketEventsEnum.WINNER, (message) => {
-      const data = JSON.parse(message);
-      this.server.to(data.room).emit(SocketEventsEnum.WINNER, {
-        ...data.data,
-      });
-    });
+        case SocketEventsEnum.WINNER_ERR: {
+          this.server.to(data.room).emit(SocketEventsEnum.WINNER_ERR, {
+            ...data.data,
+          });
+          break;
+        }
 
-    this.sub.on(SocketEventsEnum.WINNER_ERR, (message) => {
-      const data = JSON.parse(message);
-      this.server.to(data.room).emit(SocketEventsEnum.WINNER_ERR, {
-        ...data.data,
-      });
+        default:
+          break;
+      }
     });
   }
 

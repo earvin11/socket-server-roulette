@@ -36,7 +36,9 @@ export class RedisService implements RedisPort {
     await this.redisPub.publish(event, data);
   }
   async subscribe(event: string, data: any): Promise<void> {
-    throw new Error('Method not implemented.');
+    await this.redisSub.subscribe(event, () => {
+      console.log('Subscribe on channel: ', event);
+    });
   }
 
   async send<T = any>(
