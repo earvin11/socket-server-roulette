@@ -8,6 +8,7 @@ import { RedisPort } from 'src/redis/domain/redis.port';
 @Injectable()
 export class RedisService implements RedisPort {
   private handlers = new Map<string, (data: any) => void>();
+  private redisManager: Redis;
   constructor(
     private readonly loggerPort: LoggerPort,
     @Inject('REDIS_SUBSCRIBER') private readonly redisSub: Redis,
@@ -25,12 +26,18 @@ export class RedisService implements RedisPort {
         this.handlers.delete(correlationId);
       }
     });
+
+    this.redisManager = new Redis({
+      host: envs.redisHost,
+      port: envs.redisPort,
+      password: envs.redisPassword,
+    });
   }
   async get(key: string): Promise<string | null> {
-    return await this.redisSub.get(key);
+    return await this.redisManager.get(key);
   }
   async set(key: string, value: any, ttl: number): Promise<string> {
-    return await this.redisSub.set(key, value, 'EX', ttl);
+    return await this.redisManager.set(key, value, 'EX', ttl);
   }
   async publish(event: string, data: any): Promise<void> {
     await this.redisPub.publish(event, data);
