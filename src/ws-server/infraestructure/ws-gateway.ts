@@ -17,7 +17,7 @@ import { RedisPort } from 'src/redis/domain/redis.port';
 import { Inject } from '@nestjs/common';
 import Redis from 'ioredis';
 import { RpcChannels } from 'src/shared/enums/rpc-channels.enum';
-import { envs } from 'src/config/envs';
+import { isValidBet } from 'src/shared/helpers/is-valid-bet.helper';
 
 @WebSocketGateway({
   cors: {
@@ -138,14 +138,66 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleConnection(client: Socket, ...args: any[]) {
-    const userId = client.handshake.query['user_id'];
+    // const userId = client.handshake.query['user_id'];
+    const sessionID = client.id;
+    const user = client.handshake.query['userId'];
+    const roulette = client.handshake.query['rouletteId'];
+    const operator = client.handshake.query['operator'];
+
+    const room = `${roulette}`;
+    const user_room = `${roulette}-${user}`;
+    const sessionRoom = `${sessionID}`;
+    // BLOQUEO DE PLAYER
+    const user_status = `${user}`;
+
+    const rooms = [room, user_room, user_status, sessionRoom];
+
     this.loggerPort.log('NEW CLIENT CONECTED');
     this.connectedClients.add(client.id);
-    // this.server.socketsJoin(userId as string);
-    client.join(userId as string);
+    client.join(rooms);
     this.loggerPort.log(
       `Cliente conectado: ${client.id}. Total conectados: ${this.connectedClients.size}`,
     );
+
+    client.use((packet, next) => {
+      const event = packet[0];
+      if (event === 'bet') {
+        const data = packet[1];
+        const { player, roulette: rouletteId } = data;
+        const betData = data.bet;
+        if (!betData) {
+          return this.server
+            .to(`${rouletteId}-${player}`)
+            .emit(SocketEventsEnum.BET_ERROR, {
+              msg: 'there is not bet',
+            });
+        }
+
+        if (
+          !isValidBet({
+            calleNumbers: data.bet.calleNumbers || [],
+            chanceSimple: data.bet.chanceSimple || [],
+            color: data.bet.color || [],
+            columns: data.bet.columns || [],
+            cuadroNumbers: data.bet.cuadroNumbers || [],
+            cubre: data.bet.cubre || [],
+            dozens: data.bet.dozens || [],
+            even_odd: data.bet.even_odd || [],
+            lineaNumbers: data.bet.lineaNumbers || [],
+            plenoNumbers: data.bet.plenoNumbers || [],
+            semiPlenoNumbers: data.bet.semiPlenoNumbers || [],
+            specialCalle: data.bet.specialCalle || [],
+          })
+        ) {
+          return this.server
+            .to(`${rouletteId}-${player}`)
+            .emit(SocketEventsEnum.BET_ERROR, {
+              msg: 'Bet invalid',
+            });
+        }
+      }
+      next();
+    });
   }
   handleDisconnect(client: any) {
     this.loggerPort.log('CLIENT DISCONECTED');
@@ -163,13 +215,6 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage(SocketEventsEnum.BET)
   async handleBet(@MessageBody() data: any) {
     try {
-      const roundFound = await this.redisPort.get(
-        `round-roulette:${data.roulette}`,
-      );
-      if (!roundFound) return;
-
-      // const round = JSON.parse(roundFound);
-
       const round = await getEntityFromCacheOrDb(
         () => this.redisPort.get(`round-roulette:${data.roulette}`),
         () =>
@@ -197,6 +242,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.queueBet.add(QueueName.BET, { ...data, round });
       return;
     } catch (error) {
+      this.loggerPort.error('Error generando apuesta', error);
       this.server.emit(SocketEventsEnum.BET_ERROR, {
         msg: 'Internal server error',
       });

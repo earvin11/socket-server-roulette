@@ -7,27 +7,12 @@ import { RedisPort } from 'src/redis/domain/redis.port';
 
 @Injectable()
 export class RedisService implements RedisPort {
-  //   private redisPub: Redis;
-  //   private redisSub: Redis;
-
   private handlers = new Map<string, (data: any) => void>();
   constructor(
     private readonly loggerPort: LoggerPort,
     @Inject('REDIS_SUBSCRIBER') private readonly redisSub: Redis,
     @Inject('REDIS_PUBLISHER') private readonly redisPub: Redis,
   ) {
-    // this.redisPub = new Redis({
-    //   host: envs.redisHost,
-    //   port: envs.redisPort,
-    //   password: envs.redisPassword,
-    // });
-
-    // this.redisSub = new Redis({
-    //   host: envs.redisHost,
-    //   port: envs.redisPort,
-    //   password: envs.redisPassword,
-    // });
-
     this.redisSub.on('message', (__, message) => {
       // Extrae data y correlationId
       // En la data vendria la response

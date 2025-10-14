@@ -8,7 +8,6 @@ export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
 
   async connectToRedis(): Promise<void> {
-    // const pubClient = createClient({ url: `redis://${envs.redisPassword}@${envs.redisHost}:${ envs.redisPort }` });
     const pubClient = createClient({
       socket: {
         host: envs.redisHost,
