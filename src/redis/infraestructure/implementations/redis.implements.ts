@@ -117,7 +117,7 @@ export class RedisService implements RedisPort {
         resolve(responseData);
       });
 
-      const channel = `${pattern}`;
+      const channel = `${pattern}-${this.randomSubscriber()}`;
       this.loggerPort.log(
         `[SOCKET-ROULETTE-SERVICE RPC event send] ${channel}`,
         { correlationId, replyChannel, data },
@@ -130,5 +130,9 @@ export class RedisService implements RedisPort {
           reject(new Error(`Failed to publish message: ${err.message}`));
         });
     });
+  }
+
+  private randomSubscriber() {
+    return Math.floor(Math.random() * envs.subscribersInstances) + 1;
   }
 }

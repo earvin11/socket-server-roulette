@@ -15,6 +15,13 @@ import { LoggerModule } from 'src/logging/infraestructure/logger.module';
         removeOnFail: 5,
       },
     }),
+    BullModule.registerQueue({
+      name: QueueName.SOCKET_WINNER,
+      defaultJobOptions: {
+        removeOnComplete: true,
+        removeOnFail: 5,
+      },
+    }),
     LoggerModule,
     RedisModule,
   ],

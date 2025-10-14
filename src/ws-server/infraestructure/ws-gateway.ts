@@ -32,6 +32,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     @InjectQueue(QueueName.BET)
     private readonly queueBet: Queue,
+    @InjectQueue(QueueName.SOCKET_WINNER)
+    private readonly winnerQueue: Queue,
+
     private readonly loggerPort: LoggerPort,
     private readonly redisPort: RedisPort,
     @Inject('REDIS_SUBSCRIBER') private readonly sub: Redis,
@@ -226,7 +229,6 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit(event, data);
   }
 
-  //TODO: betEvent
   @SubscribeMessage(SocketEventsEnum.BET)
   async handleBet(@MessageBody() data: any) {
     try {
@@ -262,6 +264,25 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         msg: 'Internal server error',
       });
       return;
+    }
+  }
+
+  @SubscribeMessage(SocketEventsEnum.WINNER)
+  async handleWinner(@MessageBody() data: any) {
+    try {
+      const { playerId, roulette: rouletteId, identifierNumber } = data;
+      this.winnerQueue.add(QueueName.SOCKET_WINNER, {
+        playerId,
+        rouletteId,
+        identifierNumber,
+      });
+    } catch (error) {
+      this.loggerPort.error('Error in socket winner ->', error);
+      return this.server
+        .to(`${data.rouletteId}-${data.playerId}`)
+        .emit(SocketEventsEnum.WINNER_ERR, {
+          msg: 'Error consultando winner',
+        });
     }
   }
 }
